@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ScalaCompilerConfiguration">
-    <profile name="sbt 1" modules="graphene-spark_5074,graphene-spark" />
+    <profile name="sbt 1" modules="graphene-spark_199,graphene-spark" />
   </component>
 </project>
