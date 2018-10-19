@@ -4,8 +4,8 @@ object Main {
   def main(args: Array[String]): Unit = {
     val graphene = new Graphene()
 
-    val testString = "This is a test string."
-    val result = graphene.doRelationExtraction(testString, true, false)
+    val testString = "In which year were TV licences introduced in the UK?"
+    val result = graphene.doRelationExtraction(testString, false, false).serializeToJSON()
 
     println(result)
   }
