@@ -3,10 +3,15 @@ import java.util
 import org.lambda3.graphene.core.Graphene
 import org.apache.spark.sql.{Row, SparkSession, types}
 
-
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 object Main {
+  val schema = types.StructType(
+    types.StructField("file", types.DataTypes.StringType, true) ::
+      types.StructField("content", types.DataTypes.StringType, true) :: Nil
+  )
+
   def main(args: Array[String]): Unit = {
     // Check arguments
     if (args.length < 1) {
@@ -23,59 +28,23 @@ object Main {
 
     val file_path = args(0)
 
-    val schema = types.StructType(
-      types.StructField("file", types.DataTypes.StringType, true) ::
-        types.StructField("content", types.DataTypes.StringType, true) :: Nil
-    )
-    val rdd = spark.read.schema(schema).parquet("data/wikipedia-train/**")
-    rdd.show()
+    val df = spark.read.schema(schema).parquet(file_path)
 
     import spark.implicits._
-    val results = rdd.mapPartitions(rows => {
-      new util.ArrayList[String]().iterator.asScala
-    }).collect()
+    df.rdd.mapPartitions(rows => {
+      val graphene = new Graphene()
+
+      val results = rows.map(row => {
+        val file = row(0).toString
+        val content = row(1).toString
+        val lines = content.split("\n")
+        val results_ = lines.map(line => {
+          val res_json = graphene.doRelationExtraction(line, true, false).serializeToJSON()
+          (file, res_json)
+        })
+        results_
+      })
+      results.flatten
+    }).toDF("file", "graphene").write.option("compression", "snappy").parquet("./output")
   }
-
-  //  def test(): Unit = {
-  //    val graphene = new Graphene()
-  //
-  //    val testString = "In which year were TV licences introduced in the UK?"
-  //    val result = graphene.doRelationExtraction(testString, false, false).serializeToJSON()
-  //
-  //    println(result)
-  //  }
-}
-
-object GrapheneProcessor {
-  def process(rows: Iterator[Row]): Iterator[String] = {
-    val results = new util.ArrayList[String]
-    if (rows.isEmpty) {
-      return results.iterator.asScala
-    }
-
-    rows.map(row => {
-      val file = row(0).toString
-      val content = row(1).toString
-
-      results.add(file + "\t" + content)
-    })
-
-    return results.iterator.asScala
-  }
-
-  //  def process(rows: Iterator[Row]): Iterator[String] = {
-  //    val graphene = new Graphene()
-  //    val results = new util.ArrayList[String]
-  //
-  //    rows.map(row => {
-  //      val file = row(0).toString
-  //      val content = row(1).toString
-  //      val result = graphene.doRelationExtraction(content, true, false).serializeToJSON()
-  //
-  //      results.add(file + "\t" + result)
-  //    })
-  //
-  //
-  //    return results.iterator.asScala
-  //  }
 }

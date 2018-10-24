@@ -47,11 +47,11 @@
 		</encoder>
 	</appender>
 
-	<root level="DEBUG">
+	<root level="WARN">
 		<appender-ref ref="FILE"/>
 	</root>
 
-	<logger name="org.lambda3.graphene.core" level="DEBUG" additivity="true">
+	<logger name="org.lambda3.graphene.core" level="WARN" additivity="true">
 		<appender-ref ref="STDOUT"/>
 	</logger>
 
