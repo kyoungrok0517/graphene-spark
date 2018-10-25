@@ -9,7 +9,7 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     // Check arguments
-    if (args.length < 4) {
+    if (args.length < 2) {
       System.err.println("Usage: Main <data_path> <n_threads>")
       System.exit(1)
     }
