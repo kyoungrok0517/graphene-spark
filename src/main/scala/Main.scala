@@ -52,5 +52,7 @@ object Main {
       })
       results.flatten
     }).toDF("file", "graphene").write.option("compression", "snappy").parquet(out_path)
+
+    println("finishedFilesCounter: " + finishedFilesCounter)
   }
 }
