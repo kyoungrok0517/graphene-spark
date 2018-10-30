@@ -15,9 +15,12 @@ resolvers += "Local Maven" at Path.userHome.asFile.toURI.toURL + ".m2/repository
 mainClass in assembly := Some("Main")
 assemblyMergeStrategy in assembly := {
  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
- case x => MergeStrategy.first
+// case x => MergeStrategy.first
+ case n if n.startsWith("reference.conf") => MergeStrategy.concat
+ case _ => MergeStrategy.first
 }
 
+// etc
 artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
   artifact.name + "_" + sv.binary + "-" + SPARK_VERSION + "_" + module.revision + "." + artifact.extension
 }
@@ -33,6 +36,5 @@ dependencyOverrides ++= Seq(
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % SPARK_VERSION,
   "org.apache.spark" %% "spark-sql" % SPARK_VERSION,
-  "org.lambda3.graphene" % "graphene-core" % "3.0.0-SNAPSHOT",
-  "org.lambda3.graphene" % "graphene" % "3.0.0-SNAPSHOT"
+  "org.lambda3.graphene" % "graphene-core" % "3.0.0-SNAPSHOT"
 )

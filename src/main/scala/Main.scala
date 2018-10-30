@@ -28,7 +28,7 @@ object Main {
     val spark = SparkSession
       .builder()
       .appName("Exobrain Graphene Processer")
-      .master(s"local[2]")
+//      .master(s"local[2]")
       .getOrCreate()
 
     val sc = spark.sparkContext
@@ -56,14 +56,16 @@ object Main {
         val results_ = sentences.map(sentence => {
           val res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
 
-          // update the counter
-          finishedFilesCounter.add(1)
-          // print the progress
-          println(s"${finishedFilesCounter.value}/${totalCount.value}")
-
           // return
           (file, sentence, res_json)
         })
+
+        // update the counter
+        finishedFilesCounter.add(1)
+        // print the progress
+        println(s"${finishedFilesCounter.value}/${totalCount.value}")
+
+        // return
         results_
       })
 
