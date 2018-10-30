@@ -49,11 +49,11 @@ object Main {
     val results = df.as[Record].mapPartitions(rows => {
       val graphene = new Graphene()
 
-      val results_rows = rows.map(row => {
+      val results_rows = rows.flatMap(row => {
         val file = Option(row.file.toString).getOrElse("")
         val content = Option(row.content.toString).getOrElse("")
         val sentences = content.split("\n")
-        sentences.map(sentence => {
+        val results_ = sentences.map(sentence => {
           val res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
 
           // update the counter
@@ -64,6 +64,7 @@ object Main {
           // return
           (file, sentence, res_json)
         })
+        results_
       })
 
       results_rows
