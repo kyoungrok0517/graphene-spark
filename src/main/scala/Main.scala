@@ -1,11 +1,14 @@
+import java.text.SimpleDateFormat
+import java.util.Calendar
+
+import org.apache.spark.sql.types.{StringType, StructField}
 import org.lambda3.graphene.core.Graphene
 import org.apache.spark.sql.{DataFrame, Row, SparkSession, types}
 
+case class Record(file: String, content: String)
+case class Result(file: String, sentence: String, graphene: String)
+
 object Main {
-  val schema = types.StructType(
-    types.StructField("file", types.DataTypes.StringType, true) ::
-      types.StructField("content", types.DataTypes.StringType, true) :: Nil
-  )
 
   def main(args: Array[String]): Unit = {
     // Check arguments
@@ -16,47 +19,57 @@ object Main {
 
     // get args
     val data_path = args(0)
-    val out_path = args(1)
+    val out_dir = args(1)
+    val now = Calendar.getInstance().getTime()
+    val formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss")
+    val timestamp = formatter.format(now)
+    val out_path = s"$out_dir/$timestamp"
 
     val spark = SparkSession
       .builder()
       .appName("Exobrain Graphene Processer")
-      .master(s"local[1]")
+      .master(s"local[2]")
       .getOrCreate()
-    val sc = spark.sparkContext
 
+    val sc = spark.sparkContext
+    val schema = types.StructType(
+      StructField("file", StringType, true) ::
+        StructField("content", StringType, true) :: Nil
+    )
     val df = spark.read.schema(schema).parquet(data_path).toDF()
+//    df.show()
 
     // 처리 시작
     val totalCount = sc.broadcast(df.count())
     val finishedFilesCounter = sc.longAccumulator("finishedFilesCounter")
 
-    println("Total count: " + totalCount)
+    println("Total count: " + totalCount.value)
 
     import spark.implicits._
-    df.mapPartitions(rows => {
+    val results = df.as[Record].mapPartitions(rows => {
       val graphene = new Graphene()
 
-      val results = rows.map(row => {
-        val file = Option(row(0).toString).getOrElse("")
-        val content = Option(row(1).toString).getOrElse("")
-        val lines = content.split("\n")
-        val results_ = lines.map(line => {
-          val res_json = graphene.doRelationExtraction(line, true, false).serializeToJSON()
+      val results_rows = rows.map(row => {
+        val file = Option(row.file.toString).getOrElse("")
+        val content = Option(row.content.toString).getOrElse("")
+        val sentences = content.split("\n")
+        sentences.map(sentence => {
+          val res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
 
-          (file, res_json)
+          // update the counter
+          finishedFilesCounter.add(1)
+          // print the progress
+          println(s"${finishedFilesCounter.value}/${totalCount.value}")
+
+          // return
+          (file, sentence, res_json)
         })
-
-        // update the counter
-        finishedFilesCounter.add(1)
-
-        // print progress
-        println(s"$finishedFilesCounter/$totalCount")
-
-        // return
-        results_
       })
-      results.flatten
-    }).toDF("file", "graphene").write.option("compression", "snappy").parquet(out_path)
+
+      results_rows
+    }).toDF("file", "sentence", "graphene")
+
+    // save
+    results.write.option("compression", "snappy").parquet(out_path)
   }
 }
