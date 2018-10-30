@@ -21,7 +21,7 @@ object Main {
     val spark = SparkSession
       .builder()
       .appName("Exobrain Graphene Processer")
-      .master(s"local[*]")
+      .master(s"local[1]")
       .getOrCreate()
     val sc = spark.sparkContext
 
@@ -31,13 +31,16 @@ object Main {
     val totalCount = sc.broadcast(df.count())
     val finishedFilesCounter = sc.longAccumulator("finishedFilesCounter")
 
+    println("Total count: " + totalCount)
+
     import spark.implicits._
     df.mapPartitions(rows => {
       val graphene = new Graphene()
 
       val results = rows.map(row => {
-        val file = row(0).toString
-        val lines = row(1).toString.split("\n")
+        val file = Option(row(0).toString).getOrElse("")
+        val content = Option(row(1).toString).getOrElse("")
+        val lines = content.split("\n")
         val results_ = lines.map(line => {
           val res_json = graphene.doRelationExtraction(line, true, false).serializeToJSON()
 
@@ -47,12 +50,13 @@ object Main {
         // update the counter
         finishedFilesCounter.add(1)
 
+        // print progress
+        println(s"$finishedFilesCounter/$totalCount")
+
         // return
         results_
       })
       results.flatten
     }).toDF("file", "graphene").write.option("compression", "snappy").parquet(out_path)
-
-    println("finishedFilesCounter: " + finishedFilesCounter)
   }
 }
