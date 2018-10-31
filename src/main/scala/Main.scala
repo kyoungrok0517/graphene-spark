@@ -46,7 +46,7 @@ object Main {
     println("Total count: " + totalCount.value)
 
     import spark.implicits._
-    val results = df.as[Record].mapPartitions(rows => {
+    val results = df.repartition(2000).as[Record].mapPartitions(rows => {
       val graphene = new Graphene()
 
       val results_rows = rows.flatMap(row => {
