@@ -36,7 +36,7 @@ object Main {
       StructField("file", StringType, true) ::
         StructField("content", StringType, true) :: Nil
     )
-    val df = spark.read.schema(schema).parquet(data_path).toDF()
+    val df = spark.read.schema(schema).parquet(data_path)
 //    df.show()
 
     // 처리 시작
