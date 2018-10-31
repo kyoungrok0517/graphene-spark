@@ -12,15 +12,15 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     // Check arguments
-    if (args.length < 3) {
-      System.err.println("Usage: Main <data_path> <out_path> <n_partitions>")
+    if (args.length < 2) {
+      System.err.println("Usage: Main <data_path> <out_path> [<n_partitions>]")
       System.exit(1)
     }
 
     // get args
     val data_path = args(0)
     val out_dir = args(1)
-    val n_partitions = Option(args(2)).getOrElse(3000)
+    val n_partitions = Option(args(2).toInt).getOrElse(3000)
     val now = Calendar.getInstance().getTime()
     val formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss")
     val timestamp = formatter.format(now)
