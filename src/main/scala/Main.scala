@@ -6,21 +6,22 @@ import org.lambda3.graphene.core.Graphene
 import org.apache.spark.sql.{DataFrame, Row, SparkSession, types}
 
 case class Record(file: String, content: String)
+
 case class Result(file: String, sentence: String, graphene: String)
 
 object Main {
 
   def main(args: Array[String]): Unit = {
     // Check arguments
-    if (args.length < 2) {
-      System.err.println("Usage: Main <data_path> <out_path> [<n_partitions>]")
+    if (args.length < 3) {
+      System.err.println("Usage: Main <data_path> <out_path> <n_partitions>")
       System.exit(1)
     }
 
     // get args
     val data_path = args(0)
     val out_dir = args(1)
-    val n_partitions = Option(args(2).toInt).getOrElse(3000)
+    val n_partitions = args(2).toInt
     val now = Calendar.getInstance().getTime()
     val formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss")
     val timestamp = formatter.format(now)
@@ -29,7 +30,7 @@ object Main {
     val spark = SparkSession
       .builder()
       .appName("Exobrain Graphene Processer")
-//      .master(s"local[2]")
+      //      .master(s"local[2]")
       .getOrCreate()
 
     val sc = spark.sparkContext
@@ -38,7 +39,7 @@ object Main {
         StructField("content", StringType, true) :: Nil
     )
     val df = spark.read.schema(schema).parquet(data_path)
-//    df.show()
+    //    df.show()
 
     // 처리 시작
     val totalCount = sc.broadcast(df.count())
@@ -55,16 +56,22 @@ object Main {
         val content = Option(row.content.toString).getOrElse("")
         val sentences = content.split("\n")
         val results_ = sentences.map(sentence => {
-          val res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
-
-          // return
-          (file, sentence, res_json)
+          var res_json: String = "{}"
+          try {
+            res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
+            (file, sentence, res_json)
+          } catch {
+            case unknown: Throwable => { 
+              res_json = "{}"
+              (file, sentence, res_json)
+            }
+          }
         })
 
         // update the counter
         finishedFilesCounter.add(1)
         // print the progress
-        println(s"${finishedFilesCounter.value}/${totalCount.value}")
+//        println(s"${finishedFilesCounter.value}/${totalCount.value}")
 
         // return
         results_
