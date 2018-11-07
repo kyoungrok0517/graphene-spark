@@ -30,7 +30,7 @@ object Main {
     val spark = SparkSession
       .builder()
       .appName("Exobrain Graphene Processer")
-      //      .master(s"local[2]")
+      .master(s"local[2]")
       .getOrCreate()
 
     val sc = spark.sparkContext
@@ -48,39 +48,50 @@ object Main {
     println("Total count: " + totalCount.value)
 
     import spark.implicits._
-    val results = df.repartition(n_partitions).as[Record].mapPartitions(rows => {
-      val graphene = new Graphene()
+    val sentences = df.as[Record].flatMap(row => {
+      val file = Option(row.file.toString).getOrElse("")
+      val content = Option(row.content.toString).getOrElse("")
+      content.split("\n").map((s: String) => (file: String, s: String))
+    }).filter(t => !t._2.trim.isEmpty)
 
-      val results_rows = rows.flatMap(row => {
-        val file = Option(row.file.toString).getOrElse("")
-        val content = Option(row.content.toString).getOrElse("")
-        val sentences = content.split("\n")
-        val results_ = sentences.map(sentence => {
-          var res_json: String = "{}"
-          try {
-            res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
-            (file, sentence, res_json)
-          } catch {
-            case unknown: Throwable => { 
-              res_json = "{}"
-              (file, sentence, res_json)
-            }
-          }
-        })
-
-        // update the counter
-        finishedFilesCounter.add(1)
-        // print the progress
-//        println(s"${finishedFilesCounter.value}/${totalCount.value}")
-
-        // return
-        results_
-      })
-
-      results_rows
-    }).toDF("file", "sentence", "graphene")
-
-    // save
-    results.write.option("compression", "snappy").parquet(out_path)
+//    sentences.foreach(tuple => println(tuple))
   }
 }
+
+//     val results = df.repartition(n_partitions).as[Record].mapPartitions(rows => {
+     
+
+//       val sentences = rows.flatMap(row => {
+//         val file = Option(row.file.toString).getOrElse("")
+//         val content = Option(row.content.toString).getOrElse("")
+//         content.split("\n")
+//       })
+
+//       results_rows
+//     }).toDF("file", "sentence", "graphene")
+
+//     // save
+//     results.write.option("compression", "snappy").parquet(out_path)
+//   }
+// }
+
+
+//  val graphene = new Graphene()
+// val results_ = sentences.map(sentence => {
+//           var res_json: String = "{}"
+//           try {
+//             res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
+//             (file, sentence, res_json)
+//           } catch {
+//             case unknown: Throwable => { 
+//               res_json = "{}"
+//               (file, sentence, res_json)
+//             }
+//           }
+//         })
+
+//         // update the counter
+//         finishedFilesCounter.add(1)
+
+//         // return
+//         results_
