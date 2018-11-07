@@ -30,7 +30,7 @@ object Main {
     val spark = SparkSession
       .builder()
       .appName("Exobrain Graphene Processer")
-      .master(s"local[4]")
+      // .master(s"local[4]")
       .getOrCreate()
 
     val sc = spark.sparkContext
