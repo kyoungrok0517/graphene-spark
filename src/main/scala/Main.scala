@@ -13,15 +13,15 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     // Check arguments
-    if (args.length < 3) {
-      System.err.println("Usage: Main <data_path> <out_path> <n_partitions>")
+    if (args.length < 2) {
+      System.err.println("Usage: Main <data_path> <out_path>")
       System.exit(1)
     }
 
     // get args
     val data_path = args(0)
     val out_dir = args(1)
-    val n_partitions = args(2).toInt
+//    val n_partitions = args(2).toInt
     val now = Calendar.getInstance().getTime()
     val formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss")
     val timestamp = formatter.format(now)
@@ -30,7 +30,7 @@ object Main {
     val spark = SparkSession
       .builder()
       .appName("Exobrain Graphene Processer")
-      .master(s"local[2]")
+      .master(s"local[4]")
       .getOrCreate()
 
     val sc = spark.sparkContext
@@ -43,55 +43,43 @@ object Main {
 
     // 처리 시작
     val totalCount = sc.broadcast(df.count())
-    val finishedFilesCounter = sc.longAccumulator("finishedFilesCounter")
 
     println("Total count: " + totalCount.value)
 
     import spark.implicits._
+
+    // get (file, sentence) pairs
     val sentences = df.as[Record].flatMap(row => {
       val file = Option(row.file.toString).getOrElse("")
       val content = Option(row.content.toString).getOrElse("")
       content.split("\n").map((s: String) => (file: String, s: String))
-    }).filter(t => !t._2.trim.isEmpty)
+    }).filter(t => (!t._1.trim.isEmpty && !t._2.trim.isEmpty))
 
-//    sentences.foreach(tuple => println(tuple))
+    // Run Graphene
+    val results = sentences.mapPartitions(file_and_sentence_tuples => {
+      val graphene = new Graphene()
+
+      val graphene_results = file_and_sentence_tuples.map(file_and_sent => {
+        val file = file_and_sent._1
+        val sentence = file_and_sent._2
+        var res_json: String = "{}"
+        try {
+          res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
+          (file, sentence, res_json)
+        } catch {
+          case unknown: Throwable => {
+            res_json = "{}"
+            (file, sentence, res_json)
+          }
+        }
+      })
+
+      // return
+      graphene_results
+    })
+
+    // Save
+    val df_results = results.toDF("file", "sentence", "graphene")
+    df_results.write.option("compression", "snappy").parquet(out_path)
   }
 }
-
-//     val results = df.repartition(n_partitions).as[Record].mapPartitions(rows => {
-     
-
-//       val sentences = rows.flatMap(row => {
-//         val file = Option(row.file.toString).getOrElse("")
-//         val content = Option(row.content.toString).getOrElse("")
-//         content.split("\n")
-//       })
-
-//       results_rows
-//     }).toDF("file", "sentence", "graphene")
-
-//     // save
-//     results.write.option("compression", "snappy").parquet(out_path)
-//   }
-// }
-
-
-//  val graphene = new Graphene()
-// val results_ = sentences.map(sentence => {
-//           var res_json: String = "{}"
-//           try {
-//             res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
-//             (file, sentence, res_json)
-//           } catch {
-//             case unknown: Throwable => { 
-//               res_json = "{}"
-//               (file, sentence, res_json)
-//             }
-//           }
-//         })
-
-//         // update the counter
-//         finishedFilesCounter.add(1)
-
-//         // return
-//         results_
