@@ -13,15 +13,15 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     // Check arguments
-    if (args.length < 2) {
-      System.err.println("Usage: Main <data_path> <out_path>")
+    if (args.length < 3) {
+      System.err.println("Usage: Main <data_path> <out_path> <n_partitions>")
       System.exit(1)
     }
 
     // get args
     val data_path = args(0)
     val out_dir = args(1)
-//    val n_partitions = args(2).toInt
+    val n_partitions = args(2).toInt
     val now = Calendar.getInstance().getTime()
     val formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss")
     val timestamp = formatter.format(now)
@@ -56,7 +56,7 @@ object Main {
     }).filter(t => (!t._1.trim.isEmpty && !t._2.trim.isEmpty))
 
     // Run Graphene
-    val results = sentences.mapPartitions(file_and_sentence_tuples => {
+    val results = sentences.repartition(n_partitions).mapPartitions(file_and_sentence_tuples => {
       val graphene = new Graphene()
 
       val graphene_results = file_and_sentence_tuples.map(file_and_sent => {
@@ -67,7 +67,7 @@ object Main {
           res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
           (file, sentence, res_json)
         } catch {
-          case unknown: Throwable => {
+          case _: Throwable => {
             res_json = "{}"
             (file, sentence, res_json)
           }
