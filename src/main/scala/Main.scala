@@ -36,7 +36,9 @@ object Main {
     val sc = spark.sparkContext
     val schema = types.StructType(
       StructField("file", StringType, true) ::
-        StructField("content", StringType, true) :: Nil
+        StructField("content", StringType, true) :: 
+     StructField("wildcard", StringType, true) :: Nil
+
     )
     val df = spark.read.schema(schema).parquet(data_path)
     //    df.show()
