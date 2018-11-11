@@ -49,7 +49,7 @@ object Main {
     import spark.implicits._
 
     // get (file, sentence) pairs
-    val sentences = df.as[Record].flatMap(row => {
+    val sentences = df.as[Record].map(row => {
       val file = Option(row.file.toString).getOrElse("")
       val content = Option(row.content.toString).getOrElse("")
       val wildcard = Option(row.wildcard.toString).getOrElse("")
