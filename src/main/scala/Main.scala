@@ -5,9 +5,9 @@ import org.apache.spark.sql.types.{StringType, StructField}
 import org.lambda3.graphene.core.Graphene
 import org.apache.spark.sql.{DataFrame, Row, SparkSession, types}
 
-case class Record(file: String, content: String)
+case class Record(file: String, content: String, wildcard: String)
 
-case class Result(file: String, sentence: String, graphene: String)
+case class Result(file: String, sentence: String, wildcard: String, graphene: String)
 
 object Main {
 
