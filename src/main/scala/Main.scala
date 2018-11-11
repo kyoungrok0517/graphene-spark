@@ -52,7 +52,9 @@ object Main {
     val sentences = df.as[Record].flatMap(row => {
       val file = Option(row.file.toString).getOrElse("")
       val content = Option(row.content.toString).getOrElse("")
-      content.split("\n").map((s: String) => (file: String, s: String))
+      val wildcard = Option(row.wildcard.toString).getOrElse("")
+      
+      (file: String, content: String, wildcard: String)
     }).filter(t => (!t._1.trim.isEmpty && !t._2.trim.isEmpty))
 
     // Run Graphene
@@ -61,15 +63,17 @@ object Main {
 
       val graphene_results = file_and_sentence_tuples.map(file_and_sent => {
         val file = file_and_sent._1
-        val sentence = file_and_sent._2
+        val content = file_and_sent._2
+        val wildcard = file_and_sent._3
         var res_json: String = "{}"
+        
         try {
-          res_json = graphene.doRelationExtraction(sentence, true, false).serializeToJSON()
-          (file, sentence, res_json)
+          res_json = graphene.doRelationExtraction(content, false, false).serializeToJSON()
+          (file, content, wildcard, res_json)
         } catch {
           case _: Throwable => {
             res_json = "{}"
-            (file, sentence, res_json)
+            (file, content, wildcard, res_json)
           }
         }
       })
@@ -79,7 +83,7 @@ object Main {
     })
 
     // Save
-    val df_results = results.toDF("file", "sentence", "graphene")
+    val df_results = results.toDF("file", "content", "wildcard", "graphene")
     df_results.write.option("compression", "snappy").parquet(out_path)
   }
 }
